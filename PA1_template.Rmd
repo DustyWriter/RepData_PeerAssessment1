@@ -7,19 +7,113 @@ output:
 
 
 ## Loading and preprocessing the data
+```{r}
+dat<-read.csv("activity.csv",stringsAsFactors=F)
+options(scipen=100,digits=4)
+```
 
 
 
 ## What is mean total number of steps taken per day?
+```{r}
+x<-as.data.frame(tapply(dat$steps,dat$date,FUN=sum))
+x<-cbind(x,as.data.frame(tapply(dat$steps,dat$date,FUN=mean)))
+x<-cbind(x,as.data.frame(tapply(dat$steps,dat$date,FUN=median)))
+colnames(x)<-c("Total Steps","Mean","Median")
+x
+```
 
+## Histogram of total number of steps taken each day
+```{r plot}
+hist(tapply(dat$steps,dat$date,FUN=sum),main="Total number of steps per day",xaxt='n',xlab="Days")
+```
 
+## Mean & Median Number of Steps taken each day
+```{r}
+mean1<-mean(tapply(dat$steps,dat$date,FUN=sum),na.rm=T)
+median1<-median(tapply(dat$steps,dat$date,FUN=sum),na.rm=T)
+mean1
+median1
+```
+The mean of the total number of steps taken per day is `r mean1`.  
+The median of the total number of steps taken per day is `r median1`.
 
 ## What is the average daily activity pattern?
+```{r}
+time_series<-tapply(dat$steps,dat$interval,mean,na.rm=T)
+plot(x=unique(dat$interval),y=time_series,type="l",main="Time Series Plot",xlab="Interval",ylab="Average Number of Steps")
+```
 
-
+### Which 5-minute interval that, on average, contains the maximum number of steps?
+```{r}
+max_steps<-as.numeric(names(which.max(time_series)))
+max_steps
+```
+The 5-minute interval that contains the maximum number of steps is `r max_steps`.
 
 ## Imputing missing values
 
+### Calculate and report the total number of missing values in the dataset
+```{r}
+missing<-sum(is.na(dat))
+missing
+```
+The number of rows with NA is `r missing`.
 
+### Strategy for filling in the missing values
+Fill in missing values with mean for 5-minute interval, the assumption is that the number of steps taken in the 5-minute interval can be well approximated by the mean which is found in the time_series data.  
+```{r}
+dat1<-dat
+for (i in 1:nrow(dat1)){
+    if (is.na(dat1[i,1])==TRUE){
+        dat1[i,1]<-time_series[paste(dat1$interval[i])]
+        }
+}
+```
+dat1 is the new dataset with missing data filled in.  
+
+### Histogram of the total number of steps taken each day with NA values filled in
+```{r}
+hist(tapply(dat1$step,dat1$date,sum),main="Total number of steps per day",xaxt='n',xlab="Days")
+```
+
+### Mean and Median of total number of steps taken per day###
+```{r}
+mean2<-mean(tapply(dat1$step,dat1$date,sum))
+median2<-median(tapply(dat1$step,dat1$date,sum))
+mean2
+median2
+```
+The mean `r mean2` and median `r median2` here is about the same as the first part of the assignment. Since we impute data with the mean, the distribution of the histogram stays about the same.
 
 ## Are there differences in activity patterns between weekdays and weekends?
+
+### Creating the factor variable
+```{r,message=FALSE}
+if (!require(timeDate)){
+    install.packages("timeDate")
+}
+library(timeDate)
+dat1$day<-ifelse(isWeekend(dat1$date),"Weekend","Weekday")
+```
+
+### Differences in activity patterns between weekdays and weekends?
+
+```{r,message=FALSE}
+if (!require(lattice)){
+    install.packages("lattice")
+}
+library(lattice)
+
+dat2<-data.frame(interval=unique(dat1$interval),step=tapply(dat1$steps[dat1$day=="Weekday"],dat1$interval[dat1$day=="Weekday"],mean),day="Weekday")
+rownames(dat2)<-1:nrow(dat2)
+
+dat3<-data.frame(interval=unique(dat1$interval),step=tapply(dat1$steps[dat1$day=="Weekend"],dat1$interval[dat1$day=="Weekend"],mean),day="Weekend")
+rownames(dat3)<-nrow(dat2)+1:nrow(dat2)+nrow(dat3)
+
+dat4<-rbind(dat2,dat3)
+
+xyplot(step~interval|day, data=dat4,layout=c(1,2),type="l",ylab="Number of steps",xlab="Interval")
+```
+
+The panel plot that shows the average number of steps for each interval.
